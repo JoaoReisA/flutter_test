@@ -1,14 +1,15 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:restaurant_tour/models/restaurant.dart';
-import 'package:restaurant_tour/query.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:restaurant_tour/core/dependency_injection.dart';
+import 'package:restaurant_tour/core/environment.dart';
+import 'package:restaurant_tour/presentation/controllers/favorites/favorites_cubit.dart';
+import 'package:restaurant_tour/presentation/controllers/restaurants/restaurants_cubit.dart';
+import 'package:restaurant_tour/presentation/pages/home_page.dart';
 
-const _apiKey = '<PUT YOUR API KEY HERE>';
-const _baseUrl = 'https://api.yelp.com/v3/graphql';
+void main() async {
+  await Environment.load();
+  await DependencyInjection().init();
 
-void main() {
   runApp(const RestaurantTour());
 }
 
@@ -17,70 +18,19 @@ class RestaurantTour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Restaurant Tour',
-      home: HomePage(),
-    );
-  }
-}
-
-// TODO: Architect code
-// This is just a POC of the API integration
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  Future<RestaurantQueryResult?> getRestaurants({int offset = 0}) async {
-    final headers = {
-      'Authorization': 'Bearer $_apiKey',
-      'Content-Type': 'application/graphql',
-    };
-
-    try {
-      final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: headers,
-        body: query(offset),
-      );
-
-      if (response.statusCode == 200) {
-        return RestaurantQueryResult.fromJson(
-          jsonDecode(response.body)['data']['search'],
-        );
-      } else {
-        print('Failed to load restaurants: ${response.statusCode}');
-        return null;
-      }
-    } catch (e) {
-      print('Error fetching restaurants: $e');
-      return null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Restaurant Tour'),
-            ElevatedButton(
-              child: const Text('Fetch Restaurants'),
-              onPressed: () async {
-                try {
-                  final result = await getRestaurants();
-                  if (result != null) {
-                    print('Fetched ${result.restaurants!.length} restaurants');
-                  } else {
-                    print('No restaurants fetched');
-                  }
-                } catch (e) {
-                  print('Failed to fetch restaurants: $e');
-                }
-              },
-            ),
-          ],
-        ),
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) => getIt.get<RestaurantsCubit>(),
+          ),
+          BlocProvider(
+            create: (context) => getIt.get<FavoritesCubit>(),
+          ),
+        ],
+        child: const HomePage(),
       ),
     );
   }
